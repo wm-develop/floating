@@ -25,8 +25,18 @@ EnableArguments? lastEnableArguments;
 /// Support for other platforms is not planned.
 class Floating {
   final _channel = const MethodChannel('floating');
-  // final _controller = StreamController<PiPStatus>();
-  // Stream<PiPStatus>? _stream;
+
+  static final _singleton = Floating._internal();
+
+  factory Floating() => _singleton;
+
+  Floating._internal() {
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onPipChanged') {
+        isPipMode = call.arguments;
+      }
+    });
+  }
 
   bool? _isPipAvailable;
 
