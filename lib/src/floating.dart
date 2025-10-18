@@ -138,7 +138,7 @@ class Floating {
       },
     );
 
-    isPipMode = enabledSuccessfully ?? false;
+    isPipMode = autoEnable ? false : enabledSuccessfully ?? false;
 
     return isPipMode ? PiPStatus.enabled : PiPStatus.unavailable;
   }
