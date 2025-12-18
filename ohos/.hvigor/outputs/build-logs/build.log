@@ -1,0 +1,72 @@
+[2025-12-19T00:05:57.331] [DEBUG] debug-file - env: nodejsVersion=v22.21.1
+[2025-12-19T00:05:57.543] [DEBUG] debug-file - hvigor build process will be closed with an error.
+[2025-12-19T00:05:57.332] [DEBUG] debug-file - env: hvigor-config.json5 content = { modelVersion: '5.1.0', dependencies: {} }
+[2025-12-19T00:05:57.549] [DEBUG] debug-file - Create  resident worker with id: 0.
+[2025-12-19T00:05:57.544] [ERROR] debug-file - [31m00303010 Configuration Error
+Error Message: The property of module should be an array in root project build-profile.json5. At file: /Users/qshh/Desktop/Code/FTH/floating/ohos/build-profile.json5
+
+* Try the following:
+  > Check the project-level build-profile.json5 file and ensure that the module's option is an array.
+[39m
+
+[31m* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --debug option to get more log output.
+
+[2025-12-19T00:05:57.333] [DEBUG] debug-file - env: daemon=false
+[2025-12-19T00:05:57.551] [DEBUG] debug-file - Create  resident worker with id: 1.
+[2025-12-19T00:05:57.544] [DEBUG] debug-file - ERROR: stacktrace = AdaptorError: [31m00303010 Configuration Error
+Error Message: The property of module should be an array in root project build-profile.json5. At file: /Users/qshh/Desktop/Code/FTH/floating/ohos/build-profile.json5
+
+* Try the following:
+  > Check the project-level build-profile.json5 file and ensure that the module's option is an array.
+[39m
+    at HvigorLogger.printErrorExit (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/log/hvigor-log.js:1:5069)
+    at checkProjectConfigFile (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/external/core/hvigor-config.js:1:3049)
+    at new HvigorConfig (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/external/core/hvigor-config.js:1:1415)
+    at hvigorConfigInit (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/external/core/hvigor-config.js:1:3474)
+    at init (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/internal/lifecycle/init.js:1:2867)
+    at start (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/boot/index.js:1:2518)
+    at boot (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/boot/index.js:1:1818)
+    at startHvigorBuild (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/cli/main/cli.js:1:7599)
+    at /Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/bin/hvigor.js:50:64
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[2025-12-19T00:05:57.333] [DEBUG] debug-file - no-daemon, use the parent process.execArgv --max-old-space-size=8192,--max-semi-space-size=16,--expose-gc
+[2025-12-19T00:05:57.552] [DEBUG] debug-file - Current worker pool is stopped or closed.
+[2025-12-19T00:05:57.544] [ERROR] debug-file - AdaptorError: [31m00303010 Configuration Error
+Error Message: The property of module should be an array in root project build-profile.json5. At file: /Users/qshh/Desktop/Code/FTH/floating/ohos/build-profile.json5
+
+* Try the following:
+  > Check the project-level build-profile.json5 file and ensure that the module's option is an array.
+[39m
+    at HvigorLogger.printErrorExit (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/log/hvigor-log.js:1:5069)
+    at checkProjectConfigFile (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/external/core/hvigor-config.js:1:3049)
+    at new HvigorConfig (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/external/core/hvigor-config.js:1:1415)
+    at hvigorConfigInit (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/external/core/hvigor-config.js:1:3474)
+    at init (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/internal/lifecycle/init.js:1:2867)
+    at start (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/boot/index.js:1:2518)
+    at boot (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/base/boot/index.js:1:1818)
+    at startHvigorBuild (/Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/src/cli/main/cli.js:1:7599)
+    at /Applications/DevEco-Studio.app/Contents/tools/hvigor/hvigor/bin/hvigor.js:50:64
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Clear worker 0.
+[2025-12-19T00:05:57.546] [ERROR] debug-file - BUILD FAILED in 5 ms 
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Worker 0 has been cleared.
+[2025-12-19T00:05:57.548] [DEBUG] debug-file - Since there is no instance or instance is terminated, create a new worker pool.
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Current idle worker size: 1.
+[2025-12-19T00:05:57.549] [DEBUG] debug-file - Worker pool is initialized with config:  {
+  minPoolNum: 2,
+  maxPoolNum: undefined,
+  maxCoreSize: undefined,
+  cacheCapacity: undefined,
+  cacheTtl: undefined
+}
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Current busy worker size: 0.
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Clear worker 1.
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Worker 1 has been cleared.
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Current idle worker size: 0.
+[2025-12-19T00:05:57.553] [DEBUG] debug-file - Current busy worker size: 0.
+[2025-12-19T00:05:57.554] [DEBUG] debug-file - hvigor build process will be closed.
+[2025-12-19T00:05:57.565] [DEBUG] debug-file - worker[1] exits with exit code 0.
+[2025-12-19T00:05:57.566] [DEBUG] debug-file - worker[0] exits with exit code 0.
+[2025-12-19T00:05:57.566] [DEBUG] debug-file - Current worker pool is terminated.

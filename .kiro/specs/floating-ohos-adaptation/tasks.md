@@ -1,0 +1,111 @@
+# Implementation Plan
+
+- [-] 1. Create PipManager singleton class
+  - [ ] 1.1 Create PipManager.ets file with singleton pattern and basic structure
+    - Create `ohos/src/main/ets/components/plugin/PipManager.ets`
+    - Implement singleton pattern with `getInstance()` method
+    - Define instance variables: pipController, isInPipMode, onStateChangeCallback
+    - _Requirements: 5.1_
+  - [ ] 1.2 Implement PiP initialization method
+    - Implement `init(ctx: Context, onStateChange: (isInPip: boolean) => void)` method
+    - Check `PiPWindow.isPiPEnabled()` before creating controller
+    - Create PiPConfiguration with default VIDEO_PLAY template
+    - Call `PiPWindow.create()` to get PiPController
+    - Register state change listener via `pipController.on('stateChange')`
+    - _Requirements: 2.1, 5.1_
+  - [ ] 1.3 Implement state change handler
+    - Implement `onStateChange(state: PiPWindow.PiPState, reason: string)` method
+    - Update `isInPipMode` based on state (true for STARTED, false for STOPPED/ERROR)
+    - Invoke the callback to notify FloatingPlugin of state changes
+    - Log state transitions for debugging
+    - _Requirements: 4.1, 4.2, 4.3, 6.1_
+  - [ ]* 1.4 Write property test for state tracking consistency
+    - **Property 2: State Tracking Consistency**
+    - **Validates: Requirements 4.1, 4.2, 4.3**
+
+- [x] 2. Implement PipManager PiP operations
+  - [x] 2.1 Implement isPipEnabled method
+    - Implement `isPipEnabled(): boolean` that wraps `PiPWindow.isPiPEnabled()`
+    - _Requirements: 1.1, 1.2_
+  - [x] 2.2 Implement startPip method
+    - Implement `startPip(): Promise<boolean>` method
+    - Call `pipController.startPiP()` and return success/failure
+    - Handle BusinessError and log failures
+    - _Requirements: 2.1, 2.3, 2.4_
+  - [x] 2.3 Implement setAutoStart method
+    - Implement `setAutoStart(enabled: boolean): void` method
+    - Call `pipController.setAutoStartEnabled(enabled)`
+    - _Requirements: 3.1, 3.2_
+  - [x] 2.4 Implement content size configuration
+    - Implement `setContentSize(width: number, height: number): void` method
+    - Store dimensions for use in PiPConfiguration
+    - Implement aspect ratio to dimensions conversion helper
+    - _Requirements: 2.2_
+  - [ ]* 2.5 Write property test for aspect ratio conversion
+    - **Property 1: Aspect Ratio to Content Dimensions Conversion**
+    - **Validates: Requirements 2.2**
+  - [x] 2.6 Implement cleanup method
+    - Implement `destroy(): void` method
+    - Unregister state change listener via `pipController.off('stateChange')`
+    - Reset pipController to undefined
+    - _Requirements: 5.2_
+
+- [x] 3. Enhance FloatingPlugin to handle method calls
+  - [x] 3.1 Add context and state tracking to FloatingPlugin
+    - Add `context: Context | null` instance variable
+    - Add `isInPipMode: boolean` instance variable
+    - Import PipManager class
+    - _Requirements: 4.1, 5.1_
+  - [x] 3.2 Implement pipAvailable method handler
+    - Handle `pipAvailable` method call
+    - Call `PipManager.getInstance().isPipEnabled()`
+    - Return result via `result.success(boolean)`
+    - _Requirements: 1.1, 1.2_
+  - [x] 3.3 Implement enablePip method handler
+    - Handle `enablePip` method call
+    - Extract numerator, denominator, autoEnable from call arguments
+    - Initialize PipManager with context and state change callback
+    - Configure content size from aspect ratio
+    - If autoEnable: call setAutoStart(true) and return true
+    - If manual: call startPip() and return result
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 3.1, 3.2_
+  - [x] 3.4 Implement inPipAlready method handler
+    - Handle `inPipAlready` method call
+    - Return current `isInPipMode` state
+    - _Requirements: 4.1_
+  - [x] 3.5 Implement state change callback to notify Flutter
+    - Create callback function that updates `isInPipMode`
+    - Invoke `channel.invokeMethod('onPipChanged', isInPip)` to notify Flutter
+    - _Requirements: 6.1, 6.2, 6.3_
+  - [ ]* 3.6 Write property test for state change notification
+    - **Property 3: State Change Notification Consistency**
+    - **Validates: Requirements 6.1**
+
+- [x] 4. Implement plugin lifecycle management
+  - [x] 4.1 Enhance onAttachedToEngine
+    - Store context from binding for later use
+    - Ensure MethodChannel is registered with name "floating"
+    - _Requirements: 5.1_
+  - [x] 4.2 Enhance onDetachedFromEngine
+    - Call `PipManager.getInstance().destroy()` to cleanup
+    - Set channel to null
+    - _Requirements: 5.2, 5.3_
+
+- [x] 5. Checkpoint - Verify implementation compiles
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [x] 6. Integration and error handling
+  - [x] 6.1 Add comprehensive error handling
+    - Wrap PiPWindow.create() in try-catch for BusinessError
+    - Wrap startPiP() in try-catch for BusinessError
+    - Log all errors with TAG prefix for debugging
+    - Return appropriate failure values to Flutter
+    - _Requirements: 5.3_
+  - [x] 6.2 Handle edge cases
+    - Handle case where enablePip is called before context is available
+    - Handle case where PiP is not supported on device
+    - Handle repeated enablePip calls gracefully
+    - _Requirements: 1.2, 2.4_
+
+- [x] 7. Final Checkpoint - Verify complete implementation
+  - Ensure all tests pass, ask the user if questions arise.
