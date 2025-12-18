@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "floating",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ]
+  }
+}

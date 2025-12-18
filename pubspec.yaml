@@ -32,3 +32,5 @@ flutter:
       android:
         package: eu.wroblewscy.marcin.floating.floating
         pluginClass: FloatingPlugin
+      ohos:
+        pluginClass: FloatingPlugin
