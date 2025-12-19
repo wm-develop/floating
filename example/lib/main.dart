@@ -88,6 +88,12 @@ class _MyAppState extends State<MyApp> {
                           label: const Text('Enable PiP on app minimize'),
                           icon: const Icon(Icons.auto_awesome),
                         ),
+                        const SizedBox(height: 12),
+                        FloatingActionButton.extended(
+                          onPressed: () => floating.setAutoPip(false),
+                          label: const Text('Disable PiP on app minimize'),
+                          icon: const Icon(Icons.disabled_by_default),
+                        ),
                       ],
                     )
                   : const Card(

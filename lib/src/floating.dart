@@ -143,6 +143,18 @@ class Floating {
     return isPipMode ? PiPStatus.enabled : PiPStatus.unavailable;
   }
 
+  // 暂时在鸿蒙实现
+  Future<PiPStatus> setAutoPip(bool auto) async {
+    final success = await _channel.invokeMethod('setAutoPip', {
+      'auto': auto,
+    });
+    return success == true
+        ? auto
+            ? PiPStatus.automatic
+            : PiPStatus.disabled
+        : PiPStatus.unavailable;
+  }
+
   // Disposes internal components used to update the [isInPipMode$] stream.
   // void dispose() {
   //   _controller.close();

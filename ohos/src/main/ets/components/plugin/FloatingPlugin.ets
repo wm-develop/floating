@@ -8,6 +8,7 @@ import {
 } from '@ohos/flutter_ohos';
 import { PiPWindow } from '@kit.ArkUI';
 import { BusinessError } from '@kit.BasicServicesKit';
+import common from '@ohos.app.ability.common';
 
 const TAG = 'FloatingPlugin';
 
@@ -53,18 +54,19 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
   }
 
   onMethodCall(call: MethodCall, result: MethodResult): void {
+    console.info(TAG, `Method called: ${call.method}`);
     switch (call.method) {
       case "pipAvailable":
         this.handlePipAvailable(result);
+        break;
+      case "setAutoPip":
+        this.handleSetAutoPip(call, result);
         break;
       case "enablePip":
         this.handleEnablePip(call, result);
         break;
       case "inPipAlready":
         this.handleInPipAlready(result);
-        break;
-      case "getPlatformVersion":
-        result.success("OpenHarmony ^ ^ ");
         break;
       default:
         result.notImplemented();
@@ -95,10 +97,21 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
     }
   }
 
+  private async handleSetAutoPip(call: MethodCall, result: MethodResult): Promise<void> {
+    const auto: boolean = call.argument('auto') ?? false;
+    try {
+      this.pipController?.setAutoStartEnabled(auto)
+      result.success(true);
+    } catch (err) {
+      result.success(false);
+    }
+  }
+
+
   /**
    * Handle enablePip method call
    * Enables PiP mode with the specified configuration
-   * 
+   *
    * Edge cases handled (Requirements 1.2, 2.4):
    * - PiP not supported on device
    * - Repeated enablePip calls (handled gracefully by init returning true if already initialized)
@@ -112,13 +125,14 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
         return;
       }
 
-      // Extract arguments with defaults
-      const args = call.args as Record<string, Object>;
-      const numerator: number = (args['numerator'] as number) ?? 16;
-      const denominator: number = (args['denominator'] as number) ?? 9;
-      const autoEnable: boolean = (args['autoEnable'] as boolean) ?? false;
+      // Extract arguments - HarmonyOS Flutter plugin style
+      const numerator: number = call.argument('numerator') ?? 16;
+      const denominator: number = call.argument('denominator') ?? 9;
+      const autoEnable: boolean = call.argument('autoEnable') ?? false;
 
-      console.info(TAG, `enablePip: numerator=${numerator}, denominator=${denominator}, autoEnable=${autoEnable}`);
+      console.info(TAG,
+        `enablePip params: numerator=${numerator}, denominator=${denominator}, autoEnable=${autoEnable}`);
+
 
       // Configure content size from aspect ratio before initialization
       this.setContentSizeFromAspectRatio(numerator, denominator);
@@ -132,16 +146,20 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
         result.success(false);
         return;
       }
-
-      if (autoEnable) {
-        // Auto-enable mode: set auto-start and return result
-        const autoStartSuccess = this.setAutoStart(true);
-        result.success(autoStartSuccess);
-      } else {
-        // Manual mode: start PiP immediately
-        const startSuccess = await this.startPip();
-        result.success(startSuccess);
+      if (!this.pipController) {
+        console.error(TAG, 'Cannot set auto-start: controller not initialized');
+        result.success(false);
+        return;
       }
+      this.pipController.setAutoStartEnabled(true);
+      // 不自动启用就是当场启用
+      // 通过临时设置自动启用并手动返回桌面从而触发当场启用
+      // 但返回桌面后应当恢复之前的设置
+      if(!autoEnable) {
+        const uiContext = getContext() as common.UIAbilityContext
+        await uiContext.moveAbilityToBackground()
+      }
+      result.success(true);
     } catch (err) {
       console.error(TAG, `Unexpected error in enablePip: ${err}`);
       result.success(false);
@@ -258,55 +276,6 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
     }
   }
 
-  /**
-   * Start PiP mode
-   * @returns Promise resolving to true if successful, false otherwise
-   */
-  private async startPip(): Promise<boolean> {
-    if (!this.pipController) {
-      console.error(TAG, 'Cannot start PiP: controller not initialized');
-      return false;
-    }
-
-    // Check if PiP is still enabled at system level
-    if (!PiPWindow.isPiPEnabled()) {
-      console.error(TAG, 'Cannot start PiP: PiP is disabled at system level');
-      return false;
-    }
-
-    try {
-      await this.pipController.startPiP();
-      console.info(TAG, 'Successfully started PiP');
-      return true;
-    } catch (err) {
-      const error = err as BusinessError;
-      console.error(TAG, `Failed to start PiP. Code: ${error.code}, Message: ${error.message}`);
-      // Do not update internal PiP state on failure (as per design doc)
-      return false;
-    }
-  }
-
-  /**
-   * Set auto-start enabled for PiP
-   * @param enabled - Whether to enable auto-start
-   * @returns true if auto-start was set successfully, false otherwise
-   */
-  private setAutoStart(enabled: boolean): boolean {
-    if (!this.pipController) {
-      console.error(TAG, 'Cannot set auto-start: controller not initialized');
-      return false;
-    }
-
-    try {
-      this.pipController.setAutoStartEnabled(enabled);
-      console.info(TAG, `Auto-start set to: ${enabled}`);
-      return true;
-    } catch (err) {
-      const error = err as BusinessError;
-      console.error(TAG, `Failed to set auto-start. Code: ${error.code}, Message: ${error.message}`);
-      return false;
-    }
-  }
 
   /**
    * Set content size for PiP window
@@ -360,7 +329,8 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
         console.info(TAG, 'PiPController state change listener unregistered');
       } catch (err) {
         const error = err as BusinessError;
-        console.error(TAG, `Failed to unregister state change listener. Code: ${error.code}, Message: ${error.message}`);
+        console.error(TAG,
+          `Failed to unregister state change listener. Code: ${error.code}, Message: ${error.message}`);
       }
       this.pipController = undefined;
       console.info(TAG, 'PiPController destroyed');
