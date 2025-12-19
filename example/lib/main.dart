@@ -17,12 +17,6 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final floating = Floating();
 
-  @override
-  void dispose() {
-    // floating.dispose();
-    super.dispose();
-  }
-
   Future<void> enablePip(
     BuildContext context, {
     bool autoEnable = false,
@@ -59,36 +53,91 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) => MaterialApp(
         theme: ThemeData.dark(),
-        // home: PiPSwitcher(
-        //   childWhenDisabled: Scaffold(
-        //     body: Center(child: Image.asset('assets/image.jpg')),
-        //     floatingActionButtonLocation:
-        //         FloatingActionButtonLocation.centerFloat,
-        //     floatingActionButton: FutureBuilder<bool>(
-        //       future: floating.isPipAvailable,
-        //       initialData: false,
-        //       builder: (context, snapshot) => snapshot.data ?? false
-        //           ? Column(
-        //               children: [
-        //                 FloatingActionButton.extended(
-        //                   onPressed: () => enablePip(context),
-        //                   label: const Text('Enable PiP'),
-        //                   icon: const Icon(Icons.picture_in_picture),
-        //                 ),
-        //                 const SizedBox(height: 12),
-        //                 FloatingActionButton.extended(
-        //                   onPressed: () => enablePip(context, autoEnable: true),
-        //                   label: const Text('Enable PiP on app minimize'),
-        //                   icon: const Icon(Icons.auto_awesome),
-        //                 ),
-        //               ],
-        //             )
-        //           : const Card(
-        //               child: Text('PiP unavailable'),
-        //             ),
-        //     ),
-        //   ),
-        //   childWhenEnabled: Image.asset('assets/image.jpg'),
-        // ),
+        home: PiPSwitcher(
+          childWhenDisabled: Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset('assets/image.jpg', width: 300, height: 200, fit: BoxFit.cover),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'PiP Demo',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ],
+              ),
+            ),
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerFloat,
+            floatingActionButton: FutureBuilder<bool>(
+              future: floating.isPipAvailable,
+              initialData: false,
+              builder: (context, snapshot) => snapshot.data ?? false
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        FloatingActionButton.extended(
+                          onPressed: () => enablePip(context),
+                          label: const Text('Enable PiP'),
+                          icon: const Icon(Icons.picture_in_picture),
+                        ),
+                        const SizedBox(height: 12),
+                        FloatingActionButton.extended(
+                          onPressed: () => enablePip(context, autoEnable: true),
+                          label: const Text('Enable PiP on app minimize'),
+                          icon: const Icon(Icons.auto_awesome),
+                        ),
+                      ],
+                    )
+                  : const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('PiP unavailable'),
+                      ),
+                    ),
+            ),
+          ),
+          childWhenEnabled: Image.asset('assets/image.jpg'),
+        ),
       );
+}
+
+/// Simple PiPSwitcher widget that switches between different UI based on PiP status
+class PiPSwitcher extends StatefulWidget {
+  final Widget childWhenDisabled;
+  final Widget childWhenEnabled;
+
+  const PiPSwitcher({
+    Key? key,
+    required this.childWhenDisabled,
+    required this.childWhenEnabled,
+  }) : super(key: key);
+
+  @override
+  _PiPSwitcherState createState() => _PiPSwitcherState();
+}
+
+class _PiPSwitcherState extends State<PiPSwitcher> {
+  final floating = Floating();
+  bool isPipMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPipStatus();
+  }
+
+  void _checkPipStatus() async {
+    // Check initial PiP status
+    final status = await floating.pipStatus;
+    setState(() {
+      isPipMode = status == PiPStatus.enabled;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return isPipMode ? widget.childWhenEnabled : widget.childWhenDisabled;
+  }
 }

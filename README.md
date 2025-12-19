@@ -2,11 +2,13 @@
 
 [![codecov](https://codecov.io/gh/wrbl606/floating/graph/badge.svg?token=C41QR8ZOEP)](https://codecov.io/gh/wrbl606/floating)
 
-Picture in Picture management for Flutter. **Android only**
+Picture in Picture management for Flutter. **Android and HarmonyOS support**
 
 ![Picture in picture demo](https://wrbl.xyz/res/floating.gif)
 
 ## App configuration
+
+### Android
 
 Add `android:supportsPictureInPicture="true"` line to the `<activity>` tag in `android/src/main/AndroidManifest.xml`:
 
@@ -18,6 +20,10 @@ Add `android:supportsPictureInPicture="true"` line to the `<activity>` tag in `a
             android:supportsPictureInPicture="true"
             ...
 ```
+
+### HarmonyOS
+
+No additional configuration is required for HarmonyOS. The plugin will automatically check if PiP is available on the device and handle initialization.
 
 ## Widget
 
@@ -32,9 +38,9 @@ PiPSwitcher(
 
 ## API
 
-PiP mode in desired mode is available only in Android
-so iOS and web support is not planned until
-the platforms adds native support for such feature.
+PiP mode is available on Android and HarmonyOS.
+iOS and web support is not planned until
+the platforms add native support for such feature.
 
 ### Create a Floating instance
 

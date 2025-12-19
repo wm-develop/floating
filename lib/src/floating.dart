@@ -21,7 +21,7 @@ EnableArguments? lastEnableArguments;
 
 /// Manages app picture in picture mode.
 ///
-/// PiP mode in is available only in Android.
+/// PiP mode is available on Android and HarmonyOS.
 /// Support for other platforms is not planned.
 class Floating {
   final _channel = const MethodChannel('floating');
