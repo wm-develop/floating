@@ -138,7 +138,11 @@ class Floating {
       },
     );
 
-    isPipMode = autoEnable ? false : enabledSuccessfully ?? false;
+    // AutoEnable only schedules the system to enter PiP later; it must not
+    // change whether the app is in PiP right now. Forcing `false` here would
+    // clobber the state set by `onPipChanged` when the app re-arms auto-PiP
+    // while already inside the PiP window (e.g. playback resuming there).
+    isPipMode = autoEnable ? isPipMode : enabledSuccessfully ?? false;
 
     return isPipMode ? PiPStatus.enabled : PiPStatus.unavailable;
   }
