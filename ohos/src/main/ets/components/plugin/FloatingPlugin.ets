@@ -694,6 +694,12 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
   private scheduleControllerRebuild(): void {
     // Rebuild outside the stateChange callback of the controller being disposed.
     setTimeout(() => {
+      // 手动小窗时 handleEnablePip 临时调了 setAutoStartEnabled(true) 来模拟
+      // 立即进入小窗，现在需要把 auto-start 关掉，否则系统残留的设置会导致下次
+      // 返回桌面时自动创建一个没有 surface 的黑屏小窗。
+      if (this.pipController) {
+        this.pipController.setAutoStartEnabled(false);
+      }
       this.disposePipController();
       if (this.autoStartRequested) {
         this.init().then((initSuccess: boolean) => {
