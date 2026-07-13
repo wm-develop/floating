@@ -34,6 +34,12 @@ class Floating {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'onPipChanged') {
         isPipMode = call.arguments;
+      } else if (call.method == 'onPipAction') {
+        final args = call.arguments as Map?;
+        final event = args?['event'];
+        if (event is String) {
+          onPipAction?.call(event, args?['status'] as int?);
+        }
       }
     });
   }
@@ -41,6 +47,14 @@ class Floating {
   bool? _isPipAvailable;
 
   late bool isPipMode = false;
+
+  /// Called when the user taps a button on the HarmonyOS PiP window's
+  /// control panel. Never called on Android.
+  ///
+  /// [event] is one of `playbackStateChanged`, `nextVideo`, `previousVideo`
+  /// (VIDEO_PLAY template). For `playbackStateChanged`, [status] is the
+  /// requested state: `1` = play, `0` = pause.
+  void Function(String event, int? status)? onPipAction;
 
   /// Confirms or denies PiP availability.
   ///
@@ -138,7 +152,11 @@ class Floating {
       },
     );
 
-    isPipMode = autoEnable ? false : enabledSuccessfully ?? false;
+    // AutoEnable only schedules the system to enter PiP later; it must not
+    // change whether the app is in PiP right now. Forcing `false` here would
+    // clobber the state set by `onPipChanged` when the app re-arms auto-PiP
+    // while already inside the PiP window (e.g. playback resuming there).
+    isPipMode = autoEnable ? isPipMode : enabledSuccessfully ?? false;
 
     return isPipMode ? PiPStatus.enabled : PiPStatus.unavailable;
   }
@@ -153,6 +171,26 @@ class Floating {
             ? PiPStatus.automatic
             : PiPStatus.disabled
         : PiPStatus.unavailable;
+  }
+
+  /// Syncs the play/pause icon on the HarmonyOS PiP window's control panel
+  /// with the app's playback state. No-op on Android.
+  ///
+  /// Call whenever playback starts or pauses so the PiP button shows the
+  /// correct icon; the plugin caches the value and re-applies it when a PiP
+  /// session starts.
+  Future<bool> updatePipControlStatus({required bool playing}) async {
+    try {
+      final success = await _channel.invokeMethod(
+        'updatePipControlStatus',
+        {'playing': playing},
+      );
+      return success == true;
+    } on MissingPluginException {
+      return false;
+    } on PlatformException {
+      return false;
+    }
   }
 
   // Disposes internal components used to update the [isInPipMode$] stream.
