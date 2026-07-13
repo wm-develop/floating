@@ -189,6 +189,10 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
   // Re-applied when the controller is rebuilt after a PiP session ends, which
   // also restores the original setting after a manual (emulated) enable.
   private autoStartRequested: boolean = false;
+  // Last playback state reported by Dart (updatePipControlStatus). Cached so
+  // it can be re-applied when a PiP session starts or the controller is
+  // rebuilt — updatePiPControlStatus only sticks on a live controller.
+  private lastPlaybackPlaying: boolean | null = null;
   private contentWidth: number = 1920;
   private contentHeight: number = 1080;
 
@@ -230,6 +234,9 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
         break;
       case "inPipAlready":
         this.handleInPipAlready(result);
+        break;
+      case "updatePipControlStatus":
+        this.handleUpdatePipControlStatus(call, result);
         break;
       default:
         result.notImplemented();
@@ -405,6 +412,16 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
       this.pipController.on('stateChange', (state: PiPWindow.PiPState, reason: string) => {
         this.handleStateChange(state, reason);
       });
+      // Register active status listener (true = PiP window onscreen, false = offscreen)
+      this.pipController.on('activeStatusChange', (active: boolean) => {
+        this.handleActiveStatusChange(active);
+      });
+      // Register control panel button listener (play/pause, next/previous on
+      // the VIDEO_PLAY template). Events are forwarded to Dart as onPipAction.
+      this.pipController.on('controlPanelActionEvent',
+        (event: PiPWindow.PiPActionEventType, status?: number) => {
+          this.handleControlPanelAction(event, status);
+        });
       return true;
     } catch (err) {
       const error = err as BusinessError;
@@ -760,6 +777,9 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
         // ABOUT_TO_START and would stop frame production again.
         this.keepRenderingForPip();
         this.ensurePipMetricsPushed();
+        // Sync the control panel play/pause icon with the app's playback
+        // state now that the panel exists.
+        this.applyPipControlStatus();
         setTimeout(() => {
           this.keepRenderingForPip();
           this.ensurePipMetricsPushed();
@@ -864,6 +884,60 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
   }
 
   /**
+   * Handle PiP active status changes.
+   * true = PiP window is onscreen, false = offscreen.
+   */
+  private handleActiveStatusChange(active: boolean): void {
+    console.info(TAG, `activeStatusChange: ${active}`);
+  }
+
+  /**
+   * Forward a PiP control panel button press to Dart.
+   * For the VIDEO_PLAY template `event` is one of 'playbackStateChanged',
+   * 'nextVideo', 'previousVideo'; for 'playbackStateChanged' `status` is the
+   * requested state (1 = play, 0 = pause).
+   */
+  private handleControlPanelAction(event: PiPWindow.PiPActionEventType, status?: number): void {
+    console.info(TAG, `controlPanelActionEvent: ${event}, status: ${status}`);
+    if (this.channel === null) {
+      return;
+    }
+    const args = new Map<string, string | number | null>();
+    args.set('event', event as string);
+    args.set('status', status ?? null);
+    this.channel.invokeMethod('onPipAction', args);
+  }
+
+  /**
+   * Handle updatePipControlStatus method call (Dart → native): sync the
+   * play/pause icon on the PiP control panel with the app's playback state.
+   */
+  private handleUpdatePipControlStatus(call: MethodCall, result: MethodResult): void {
+    const playing: boolean = call.argument('playing') ?? false;
+    this.lastPlaybackPlaying = playing;
+    this.applyPipControlStatus();
+    result.success(true);
+  }
+
+  /**
+   * Apply the cached playback state to the current controller's control
+   * panel. No-op until Dart has reported a state at least once.
+   */
+  private applyPipControlStatus(): void {
+    if (this.pipController === undefined || this.lastPlaybackPlaying === null) {
+      return;
+    }
+    try {
+      this.pipController.updatePiPControlStatus(
+        PiPWindow.PiPControlType.VIDEO_PLAY_PAUSE,
+        this.lastPlaybackPlaying ? PiPWindow.PiPControlStatus.PLAY : PiPWindow.PiPControlStatus.PAUSE);
+    } catch (err) {
+      const error = err as BusinessError;
+      console.error(TAG, `updatePiPControlStatus failed. Code: ${error.code}, Message: ${error.message}`);
+    }
+  }
+
+  /**
    * Dispose the PiP controller and its content node.
    */
   private disposePipController(): void {
@@ -875,6 +949,16 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
         const error = err as BusinessError;
         console.error(TAG,
           `Failed to unregister state change listener. Code: ${error.code}, Message: ${error.message}`);
+      }
+      try {
+        this.pipController.off('activeStatusChange');
+      } catch (err) {
+        console.error(TAG, `Failed to unregister active status listener: ${err}`);
+      }
+      try {
+        this.pipController.off('controlPanelActionEvent');
+      } catch (err) {
+        console.error(TAG, `Failed to unregister control panel listener: ${err}`);
       }
       this.pipController = undefined;
       console.info(TAG, 'PiPController destroyed');
