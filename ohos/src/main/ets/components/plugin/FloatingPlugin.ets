@@ -333,6 +333,51 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
         return;
       }
       this.autoStartRequested = autoEnable;
+
+      // 系统自由小窗（从屏幕底部上滑到右上角挂起的小窗）内，下面模拟"立即
+      // 进入"的 moveAbilityToBackground 路径必然失败（小窗最小化不会触发
+      // auto-start，会话卡在未 STARTED 的状态）。改为直接调用 startPiP()
+      // 请求系统立即拉起画中画；被窗管拒绝则如实返回 false，由调用方提示。
+      if (!autoEnable && this.isMainWindowFloating()) {
+        // 与常规模拟路径一致：先武装 auto-start 再退后台。armed 状态让
+        // 系统把这次退后台视作"正在转入画中画"，不会强停应用的音频渲染器
+        // （实测未武装时退后台 ~30ms 内音频输出即被系统停掉，mpv 随之自行
+        // 转入暂停，Dart 层无人调用 pause）。自由小窗的退后台不会触发
+        // auto-start 本身，PiP 仍靠下面的显式 startPiP 拉起；临时武装的
+        // auto-start 会在会话结束、控制器重建时恢复（见 scheduleControllerRebuild）。
+        this.pipController.setAutoStartEnabled(true);
+        // 注意退后台的 promise 在过渡完成前就会 resolve，embedding 补发的
+        // paused 生命周期何时到达 Dart 没有保证，下方 startPiP 成功后的
+        // inactive 重申负责兜底纠正。
+        try {
+          const uiContext = getContext() as common.UIAbilityContext;
+          await uiContext.moveAbilityToBackground();
+        } catch (err) {
+          console.error(TAG, `moveAbilityToBackground before startPiP failed: ${err}`);
+        }
+        let started = await this.tryStartPip('freeform first attempt');
+        if (!started) {
+          // 刚完成后台切换时窗管可能尚未就绪，稍候重试一次
+          await new Promise<void>((resolve) => setTimeout(resolve, 200));
+          started = await this.tryStartPip('freeform retry');
+        }
+        if (started) {
+          // moveAbilityToBackground 的 promise 在后台过渡完成前就 resolve，
+          // embedding 在 UIAbility.onBackground 补发的 paused 生命周期实际
+          // 晚于 ABOUT_TO_START 处的 inactive 重申才到达 Dart；而实测设备上
+          // PiPState.STARTED 从不回调，其处的重申指望不上。若 Dart 生命周期
+          // 最终停在 paused，应用侧会把播放器暂停且无人恢复。在整个过渡
+          // 窗口内多次重申，保证最后一个生命周期事件落在 inactive 上，触发
+          // 应用侧"因退后台暂停"标记的自动续播。
+          this.keepRenderingForPip();
+          setTimeout(() => this.keepRenderingForPip(), 400);
+          setTimeout(() => this.keepRenderingForPip(), 1000);
+          setTimeout(() => this.keepRenderingForPip(), 2000);
+        }
+        result.success(started);
+        return;
+      }
+
       this.pipController.setAutoStartEnabled(true);
       // 不自动启用就是当场启用
       // 通过临时设置自动启用并手动返回桌面从而触发当场启用
@@ -514,7 +559,56 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
     this.pipStopping = true;
     this.pipController?.stopPiP().catch((err: BusinessError) => {
       console.error(TAG, `stopPiP on main window shown failed. Code: ${err.code}, Message: ${err.message}`);
+      // stopPiP 被拒说明会话已经死了（例如启动流程从未走到 STARTED）,
+      // STOPPED 不会再回调；不强制复位的话 isInPipMode 和 pipStopping 会
+      // 永远卡住，Dart 侧也一直停留在画中画布局。按 ERROR 路径清理。
+      this.handleStateChange(PiPWindow.PiPState.ERROR, 'stopPiP rejected; forcing session reset');
     });
+  }
+
+  /**
+   * Ask the system to start the PiP session right now. Returns whether the
+   * request was accepted; failures are logged with the given context tag.
+   */
+  private async tryStartPip(context: string): Promise<boolean> {
+    if (this.pipController === undefined) {
+      return false;
+    }
+    try {
+      await this.pipController.startPiP();
+      console.info(TAG, `startPiP succeeded (${context})`);
+      return true;
+    } catch (err) {
+      const error = err as BusinessError;
+      // 1300015 = Repeated PiP operation：会话已在启动中（例如武装的
+      // auto-start 抢先触发），视为成功。
+      if (error.code === 1300015) {
+        console.info(TAG, `startPiP already in progress (${context})`);
+        return true;
+      }
+      console.error(TAG,
+        `startPiP failed (${context}). Code: ${error.code}, Message: ${error.message}`);
+      return false;
+    }
+  }
+
+  /**
+   * True when the app's main window is currently a freeform floating window
+   * (system-level 小窗, swipe-up-to-corner gesture). The emulated manual
+   * enable (auto-start + moveAbilityToBackground) cannot work from that
+   * state, so manual enable backgrounds the ability and calls startPiP()
+   * explicitly instead.
+   */
+  private isMainWindowFloating(): boolean {
+    try {
+      const manager = FlutterManager.getInstance();
+      const uiAbility = manager.getUIAbility(getContext());
+      const mainWindow = manager.getWindowStage(uiAbility).getMainWindowSync();
+      return mainWindow.getWindowStatus() === window.WindowStatusType.FLOATING;
+    } catch (err) {
+      console.error(TAG, `Failed to query main window status: ${err}`);
+      return false;
+    }
   }
 
   /**
@@ -1018,6 +1112,10 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
     console.info(TAG, `onPipChanged(${isInPip}) acknowledged by Dart`);
     if (isInPip) {
       this.pipStateDelivered = true;
+      // 通道消息按序处理：Dart 确认本消息时，比它先到的 paused 生命周期
+      // 必然已处理完（自由小窗路径 paused 常抢在 onPipChanged 之前）。此刻
+      // 再重申一次 inactive，把被 paused 暂停的播放立即恢复。
+      this.keepRenderingForPip();
       this.ensurePipMetricsPushed();
     } else {
       this.pushMainViewportMetrics();
