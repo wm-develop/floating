@@ -34,6 +34,7 @@ class Floating {
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'onPipChanged') {
         isPipMode = call.arguments;
+        onPipModeChanged?.call(isPipMode);
       } else if (call.method == 'onPipAction') {
         final args = call.arguments as Map?;
         final event = args?['event'];
@@ -47,6 +48,18 @@ class Floating {
   bool? _isPipAvailable;
 
   late bool isPipMode = false;
+
+  /// Called whenever [isPipMode] changes via the native `onPipChanged` push
+  /// (HarmonyOS only; Android never pushes state).
+  ///
+  /// [isPipMode] is a plain field: reading it during build does not create
+  /// any dependency, so a widget tree that switches layout on it will NOT
+  /// rebuild when PiP ends unless something else (usually a viewport-size
+  /// change) happens to trigger a rebuild afterwards. When the app leaves
+  /// PiP into a window of the same size as the last laid-out one, no such
+  /// trigger exists and the PiP layout would stick — use this callback to
+  /// force a rebuild.
+  void Function(bool isPipMode)? onPipModeChanged;
 
   /// Called when the user taps a button on the HarmonyOS PiP window's
   /// control panel. Never called on Android.
@@ -156,9 +169,25 @@ class Floating {
     // change whether the app is in PiP right now. Forcing `false` here would
     // clobber the state set by `onPipChanged` when the app re-arms auto-PiP
     // while already inside the PiP window (e.g. playback resuming there).
-    isPipMode = autoEnable ? isPipMode : enabledSuccessfully ?? false;
+    if (autoEnable) {
+      return isPipMode ? PiPStatus.enabled : PiPStatus.unavailable;
+    }
 
-    return isPipMode ? PiPStatus.enabled : PiPStatus.unavailable;
+    // Manual enable. On Android enterPictureInPictureMode is synchronous:
+    // native success means the app is in PiP right now, and there is no
+    // onPipChanged push to wait for. On HarmonyOS native success only means
+    // the emulated enter (auto-start + moveAbilityToBackground) was kicked
+    // off; whether PiP actually starts is reported later via onPipChanged.
+    // Setting isPipMode eagerly there would strand the app in the PiP layout
+    // whenever the session fails to start (e.g. the app sits in a system
+    // freeform window, where PiP cannot launch and native returns false).
+    if (Platform.isAndroid) {
+      isPipMode = enabledSuccessfully ?? false;
+    }
+
+    return (enabledSuccessfully ?? false)
+        ? PiPStatus.enabled
+        : PiPStatus.unavailable;
   }
 
   // 暂时在鸿蒙实现
