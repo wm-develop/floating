@@ -441,6 +441,10 @@ export default class FloatingPlugin implements FlutterPlugin, MethodCallHandler 
       templateType: PiPWindow.PiPTemplateType.VIDEO_PLAY,
       contentWidth: this.contentWidth,
       contentHeight: this.contentHeight,
+      // Show fast-forward/backward buttons beside play/pause on the control
+      // panel. The buttons only emit 'fastForward'/'fastBackward' events
+      // (forwarded to Dart via onPipAction); the seek amount is app-defined.
+      controlGroups: [PiPWindow.VideoPlayControlGroup.FAST_FORWARD_BACKWARD],
       customUIController: nodeController,
     };
 

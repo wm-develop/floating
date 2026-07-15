@@ -64,9 +64,11 @@ class Floating {
   /// Called when the user taps a button on the HarmonyOS PiP window's
   /// control panel. Never called on Android.
   ///
-  /// [event] is one of `playbackStateChanged`, `nextVideo`, `previousVideo`
-  /// (VIDEO_PLAY template). For `playbackStateChanged`, [status] is the
-  /// requested state: `1` = play, `0` = pause.
+  /// [event] is one of `playbackStateChanged`, `fastForward`, `fastBackward`,
+  /// `nextVideo`, `previousVideo` (VIDEO_PLAY template). For
+  /// `playbackStateChanged`, [status] is the requested state: `1` = play,
+  /// `0` = pause. The fast-forward/backward buttons carry no seek amount —
+  /// the app decides how far to seek.
   void Function(String event, int? status)? onPipAction;
 
   /// Confirms or denies PiP availability.
